@@ -72,13 +72,15 @@ async def detect(file: UploadFile = File(...)):
             conf = float(box.conf[0])
             cls = int(box.cls[0])
             class_name = model.names.get(cls, f"class_{cls}")
+            thai_name = CLASS_TRANSLATIONS.get(class_name, class_name)
+
 
             # วาดกรอบ
             draw.rectangle([x1, y1, x2, y2], outline="lime", width=3)
             draw.text((x1, y1 - 10), f"{class_name} {conf:.2f}", fill="lime")
 
             detections.append({
-                "class_name": class_name,
+                "class_name": thai_name,
                 "confidence": conf
             })
 
