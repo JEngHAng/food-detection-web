@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -88,6 +88,12 @@
         max-width: 550px;
         border-radius: 15px;
         margin: 15px 0;
+        cursor: zoom-in;
+        transition: transform 0.2s ease;
+      }
+
+      .result-card img:hover {
+        transform: scale(1.03);
       }
 
       #results-list {
@@ -114,21 +120,21 @@
   </head>
 
   <body>
-    <h1>🍱 ระบบตรวจจับอาหารไทย (Thai Food Detection)</h1>
-    <p>อัปโหลดรูปภาพอาหาร เพื่อให้ AI วิเคราะห์และบอกชื่อเมนู</p>
+    <h1>🍱 Thai Food Detector</h1>
+    <p>Upload a Thai food image and let AI detect the menu.</p>
 
     <div class="upload-box">
       <input type="file" id="upload" accept="image/*" />
       <div class="button-container">
-        <button onclick="detect()">🔍 ตรวจจับอาหาร</button>
-        <button class="reset-btn" onclick="resetPage()">🔄 รีเซ็ต</button>
+        <button onclick="detect()">🔍 Detect Food</button>
+        <button class="reset-btn" onclick="resetPage()">🔄 Reset</button>
       </div>
     </div>
 
     <div id="result-box" class="result-card" style="display: none">
-      <h2>ผลลัพธ์การตรวจจับ</h2>
-      <img id="result-image" src="" alt="ผลลัพธ์ภาพตรวจจับ" />
-      <div id="results-list">⏳ รอกำลังตรวจจับ...</div>
+      <h2>Detection Result</h2>
+      <img id="result-image" src="" alt="Detection Result" />
+      <div id="results-list">⏳ Detecting...</div>
     </div>
 
     <script>
@@ -139,12 +145,12 @@
         const resultImage = document.getElementById("result-image");
 
         if (!fileInput.files[0]) {
-          alert("กรุณาเลือกรูปภาพก่อนตรวจจับครับ");
+          alert("Please upload an image first.");
           return;
         }
 
         resultBox.style.display = "block";
-        resultList.innerHTML = '<p class="loading">⏳ กำลังตรวจจับ...</p>';
+        resultList.innerHTML = '<p class="loading">⏳ Detecting...</p>';
 
         const formData = new FormData();
         formData.append("file", fileInput.files[0]);
@@ -159,6 +165,7 @@
           );
 
           const data = await response.json();
+          console.log("Response from API:", data);
 
           if (data.error) {
             resultList.innerHTML = "❌ " + data.error;
@@ -169,31 +176,47 @@
             resultImage.src = "data:image/jpeg;base64," + data.image;
           }
 
+          // 🟢 รองรับหลายชื่อ key สำหรับชื่อเมนู
+          const menuName =
+            data.predicted_menu ||
+            data.menu ||
+            data.menu_name ||
+            data.predictedMenu ||
+            "No matching menu";
+
           let html = "";
 
-          if (data.predicted_menu && data.predicted_menu !== "ไม่พบเมนูที่ตรง") {
-            html += `<div class="menu-name">🍛 ${data.predicted_menu}</div>`;
-            html += "<strong>🔍 ส่วนประกอบ:</strong><br>";
+          if (
+            menuName &&
+            menuName !== "No matching menu" &&
+            menuName !== "ไม่พบเมนูที่ตรง"
+          ) {
+            html += `<div class="menu-name">🍛 ${menuName}</div>`;
+            html += "<strong>🔍 Components:</strong><br>";
 
             const components = data.components || data.detections || [];
             if (components.length > 0) {
               components.forEach((c) => {
-                html += `• ${c.name ?? "ไม่ทราบ"} (${(c.confidence ?? 0).toFixed(1)}%)<br>`;
+                const name = c.name ?? "Unknown";
+                const conf = (c.confidence ?? 0).toFixed(1);
+                html += `• ${name} (${conf}%)<br>`;
               });
             } else {
-              html += "⚠️ ไม่มีข้อมูลส่วนประกอบ";
+              html += "⚠️ No component data available.";
             }
           } else {
-            html += "<h3>🍽 ไม่พบเมนูที่ตรง</h3>";
-            html += "<strong>🔍 ส่วนประกอบ:</strong><br>";
+            html += "<h3>🍽 No matching menu</h3>";
+            html += "<strong>🔍 Components:</strong><br>";
 
             const dets = data.detections || [];
             if (dets.length > 0) {
               dets.forEach((d) => {
-                html += `• ${d.name ?? "ไม่ทราบ"} (${(d.confidence ?? 0).toFixed(1)}%)<br>`;
+                const name = d.name ?? "Unknown";
+                const conf = (d.confidence ?? 0).toFixed(1);
+                html += `• ${name} (${conf}%)<br>`;
               });
             } else {
-              html += "⚠️ ไม่มีข้อมูลการตรวจจับ";
+              html += "⚠️ No detection data found.";
             }
           }
 
