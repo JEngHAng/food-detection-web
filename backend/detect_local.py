@@ -2,7 +2,7 @@ import cv2
 from ultralytics import YOLO
 
 # โหลดโมเดลของคุณ
-model = YOLO("C:/Users/User/Desktop/food_detect_demo/backend/best.pt")
+model = YOLO("models/best.pt")
 
 # กำหนดค่าความมั่นใจขั้นต่ำ
 CONFIDENCE_THRESHOLD = 0.5

@@ -4,7 +4,7 @@ import cv2
 from ultralytics import YOLO
 
 app = FastAPI()
-model = YOLO("best.pt")
+model = YOLO("models/best.pt")
 CONFIDENCE_THRESHOLD = 0.5
 
 def generate_frames():
