@@ -1,5 +1,11 @@
 fastapi
 uvicorn
+python-multipart
 pillow
 ultralytics
-python-multipart
+opencv-python
+numpy
+requests
+pyngrok
+
+# pip install -r requirements.txt รันทุกครั้งเมื่อย้ายเครื่อง
