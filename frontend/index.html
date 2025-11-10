@@ -1,237 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>🍛 Thai Food Detector</title>
-    <style>
-      body {
-        font-family: "Prompt", sans-serif;
-        background: linear-gradient(135deg, #fff8f0, #f4f7fa);
-        color: #333;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 30px;
-        min-height: 100vh;
-      }
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Food Detection</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex flex-col items-center p-6">
+  <h1 class="text-3xl font-bold text-blue-600 mb-6">🍱 Food Detection Demo</h1>
 
-      h1 {
-        color: #222;
-        margin-bottom: 10px;
-      }
+  <div class="bg-white p-6 rounded-2xl shadow-lg w-full max-w-2xl text-center">
+    <input id="imageUpload" type="file" accept="image/*"
+      class="mb-4 block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer focus:outline-none" />
+    
+    <img id="preview" class="hidden w-full max-h-96 object-contain rounded-xl mb-4 border" />
 
-      .upload-box {
-        background: white;
-        padding: 25px;
-        border-radius: 16px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        text-align: center;
-        width: 100%;
-        max-width: 600px;
-      }
+    <button id="detectBtn"
+      class="bg-blue-500 text-white font-semibold px-6 py-2 rounded-xl hover:bg-blue-600 transition">Detect</button>
 
-      input[type="file"] {
-        display: block;
-        margin: 20px auto;
-      }
+    <button id="resetBtn"
+      class="hidden bg-gray-400 text-white font-semibold px-6 py-2 rounded-xl hover:bg-gray-500 ml-2 transition">Reset</button>
 
-      .button-container {
-        display: flex;
-        justify-content: center;
-        gap: 10px;
-        flex-wrap: wrap;
-      }
+    <div id="result" class="mt-6 text-left hidden">
+      <h2 class="text-lg font-semibold">🍽 Detected Menus:</h2>
+      <ul id="menuList" class="list-disc pl-5 mt-2 text-blue-600"></ul>
 
-      button {
-        padding: 12px 25px;
-        border: none;
-        border-radius: 10px;
-        background-color: #ff8c42;
-        color: white;
-        font-size: 16px;
-        cursor: pointer;
-        transition: all 0.2s;
-      }
-
-      button:hover {
-        background-color: #ff7a22;
-      }
-
-      .reset-btn {
-        background-color: #bbb;
-      }
-
-      .reset-btn:hover {
-        background-color: #999;
-      }
-
-      .result-card {
-        margin-top: 30px;
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
-        padding: 25px;
-        text-align: center;
-        width: 100%;
-        max-width: 800px;
-        transition: all 0.3s ease;
-      }
-
-      .result-card h2 {
-        color: #ff8c42;
-        margin-bottom: 15px;
-      }
-
-      .result-card img {
-        width: 100%;
-        max-width: 550px;
-        border-radius: 15px;
-        margin: 15px 0;
-        cursor: zoom-in;
-        transition: transform 0.2s ease;
-      }
-
-      .result-card img:hover {
-        transform: scale(1.03);
-      }
-
-      #results-list {
-        text-align: left;
-        background: #fafafa;
-        border-radius: 12px;
-        padding: 15px;
-        line-height: 1.8;
-        margin-top: 10px;
-        font-size: 15px;
-      }
-
-      .menu-name {
-        font-size: 22px;
-        color: #1c7c54;
-        font-weight: 600;
-        margin-top: 10px;
-      }
-
-      .loading {
-        color: #777;
-      }
-    </style>
-  </head>
-
-  <body>
-    <h1>🍱 Thai Food Detector</h1>
-    <p>Upload a Thai food image and let AI detect the menu.</p>
-
-    <div class="upload-box">
-      <input type="file" id="upload" accept="image/*" />
-      <div class="button-container">
-        <button onclick="detect()">🔍 Detect Food</button>
-        <button class="reset-btn" onclick="resetPage()">🔄 Reset</button>
-      </div>
+      <h2 class="text-lg font-semibold mt-4">🔍 Components:</h2>
+      <ul id="componentList" class="list-disc pl-5 mt-2 text-gray-700"></ul>
     </div>
+  </div>
 
-    <div id="result-box" class="result-card" style="display: none">
-      <h2>Detection Result</h2>
-      <img id="result-image" src="" alt="Detection Result" />
-      <div id="results-list">⏳ Detecting...</div>
-    </div>
+  <script>
+    const imageUpload = document.getElementById("imageUpload");
+    const preview = document.getElementById("preview");
+    const detectBtn = document.getElementById("detectBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const result = document.getElementById("result");
+    const menuList = document.getElementById("menuList");
+    const componentList = document.getElementById("componentList");
 
-    <script>
-      async function detect() {
-        const fileInput = document.getElementById("upload");
-        const resultBox = document.getElementById("result-box");
-        const resultList = document.getElementById("results-list");
-        const resultImage = document.getElementById("result-image");
+    let uploadedFile = null;
 
-        if (!fileInput.files[0]) {
-          alert("Please upload an image first.");
-          return;
-        }
+    imageUpload.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      if (file) {
+        uploadedFile = file;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          preview.src = e.target.result;
+          preview.classList.remove("hidden");
+          resetBtn.classList.remove("hidden");
+        };
+        reader.readAsDataURL(file);
+      }
+    });
 
-        resultBox.style.display = "block";
-        resultList.innerHTML = '<p class="loading">⏳ Detecting...</p>';
+    detectBtn.addEventListener("click", async () => {
+      if (!uploadedFile) return alert("Please upload an image first.");
 
-        const formData = new FormData();
-        formData.append("file", fileInput.files[0]);
+      const formData = new FormData();
+      formData.append("file", uploadedFile);
 
-        try {
-          const response = await fetch(
-            "https://biogeographically-caliphal-kaidence.ngrok-free.dev/detect",
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
+      result.classList.add("hidden");
+      menuList.innerHTML = "";
+      componentList.innerHTML = "";
 
-          const data = await response.json();
-          console.log("Response from API:", data);
+      const res = await fetch("http://127.0.0.1:8000/predict/", {
+        method: "POST",
+        body: formData
+      });
 
-          if (data.error) {
-            resultList.innerHTML = "❌ " + data.error;
-            return;
-          }
+      const data = await res.json();
 
-          if (data.image) {
-            resultImage.src = "data:image/jpeg;base64," + data.image;
-          }
-
-          // 🟢 รองรับหลายชื่อ key สำหรับชื่อเมนู
-          const menuName =
-            data.predicted_menu ||
-            data.menu ||
-            data.menu_name ||
-            data.predictedMenu ||
-            "No matching menu";
-
-          let html = "";
-
-          if (
-            menuName &&
-            menuName !== "No matching menu" &&
-            menuName !== "ไม่พบเมนูที่ตรง"
-          ) {
-            html += `<div class="menu-name">🍛 ${menuName}</div>`;
-            html += "<strong>🔍 Components:</strong><br>";
-
-            const components = data.components || data.detections || [];
-            if (components.length > 0) {
-              components.forEach((c) => {
-                const name = c.name ?? "Unknown";
-                const conf = (c.confidence ?? 0).toFixed(1);
-                html += `• ${name} (${conf}%)<br>`;
-              });
-            } else {
-              html += "⚠️ No component data available.";
-            }
-          } else {
-            html += "<h3>🍽 No matching menu</h3>";
-            html += "<strong>🔍 Components:</strong><br>";
-
-            const dets = data.detections || [];
-            if (dets.length > 0) {
-              dets.forEach((d) => {
-                const name = d.name ?? "Unknown";
-                const conf = (d.confidence ?? 0).toFixed(1);
-                html += `• ${name} (${conf}%)<br>`;
-              });
-            } else {
-              html += "⚠️ No detection data found.";
-            }
-          }
-
-          resultList.innerHTML = html;
-        } catch (err) {
-          resultList.innerHTML = "❌ Error: " + err.message;
-        }
+      if (data.menu.length === 0) {
+        menuList.innerHTML = `<li class="text-red-500 font-medium">No matching menu</li>`;
+      } else {
+        data.menu.forEach(m => {
+          const li = document.createElement("li");
+          li.textContent = m;
+          menuList.appendChild(li);
+        });
       }
 
-      function resetPage() {
-        document.getElementById("upload").value = "";
-        document.getElementById("result-box").style.display = "none";
-        document.getElementById("result-image").src = "";
-        document.getElementById("results-list").innerHTML = "";
+      if (data.components.length > 0) {
+        data.components.forEach(c => {
+          const li = document.createElement("li");
+          li.textContent = `${c.label} (${c.confidence}%)`;
+          componentList.appendChild(li);
+        });
       }
-    </script>
-  </body>
+
+      result.classList.remove("hidden");
+    });
+
+    resetBtn.addEventListener("click", () => {
+      imageUpload.value = "";
+      preview.src = "";
+      preview.classList.add("hidden");
+      result.classList.add("hidden");
+      menuList.innerHTML = "";
+      componentList.innerHTML = "";
+      uploadedFile = null;
+    });
+  </script>
+</body>
 </html>
