@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# แปล Class เป็นภาษาไทย
+# 🔤 แปลชื่อ Class เป็นภาษาไทย
 CLASS_TRANSLATIONS = {
     "boiled_chicken": "ไก่ต้ม",
     "boiled_chicken_blood_jelly": "เลือดไก่ต้ม",
@@ -38,7 +38,7 @@ CLASS_TRANSLATIONS = {
     "stir_fried_basil": "กะเพรา",
 }
 
-# 🧠 กฎสำหรับเมนูอาหารไทย
+# 🍱 กฎสำหรับเมนูอาหารไทย
 MENU_RULES = [
     {
         "menu": "ข้าวมันไก่ต้ม",
@@ -82,7 +82,7 @@ MENU_RULES = [
     },
 ]
 
-# ✅ โหลดโมเดล
+# ✅ โหลดโมเดล YOLO
 try:
     model = YOLO("models/best.pt")
 except Exception as e:
@@ -95,13 +95,14 @@ async def detect(file: UploadFile = File(...)):
     if model is None:
         return {"error": "Model not loaded"}
 
+    # 📷 อ่านรูปภาพ
     try:
         image_bytes = await file.read()
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
     except Exception as e:
         return {"error": f"Invalid image: {e}"}
 
-    # 🔍 ตรวจจับ
+    # 🔍 ตรวจจับวัตถุ
     try:
         results = model(image)[0]
     except Exception as e:
@@ -110,7 +111,7 @@ async def detect(file: UploadFile = File(...)):
     detections = []
     draw = ImageDraw.Draw(image)
 
-    # 🔸 ป้องกันผลลัพธ์ว่าง
+    # 🟩 ดึงผลลัพธ์การตรวจจับ
     if results.boxes is not None and len(results.boxes) > 0:
         for box in results.boxes:
             x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -119,7 +120,7 @@ async def detect(file: UploadFile = File(...)):
             class_name = model.names.get(cls, f"class_{cls}")
             thai_name = CLASS_TRANSLATIONS.get(class_name, class_name)
 
-            # วาดกรอบรอบวัตถุ
+            # วาดกรอบบนภาพ
             draw.rectangle([x1, y1, x2, y2], outline="lime", width=3)
             draw.text((x1, y1 - 10), f"{thai_name} {conf:.2f}", fill="lime")
 
@@ -128,21 +129,41 @@ async def detect(file: UploadFile = File(...)):
                 "confidence": conf
             })
 
-    # ✅ ตรวจว่าตรงกับเมนูไหน
+    # ✅ ตรวจว่าตรงกับเมนูไหน + แสดงส่วนประกอบ
     detected_names = [d["class_name"] for d in detections]
     matched_menu = None
+    matched_ingredients = []
+
     for rule in MENU_RULES:
         if all(item in detected_names for item in rule["must_have"]):
             matched_menu = rule["menu"]
+            # ดึงส่วนประกอบที่ตรงกับกฎ (must_have + optional ที่ตรวจพบ)
+            all_items = rule["must_have"] + rule["optional"]
+            matched_ingredients = [
+                d for d in detections if d["class_name"] in all_items
+            ]
             break
 
-    # 🔄 แปลงภาพเป็น Base64
+    # 🧩 สรุปผลลัพธ์ข้อความ
+    if matched_menu:
+        ingredient_details = [
+            f"- {d['class_name']} ({d['confidence']*100:.1f}%)"
+            for d in matched_ingredients
+        ]
+        summary_text = f"🍛 เมนูที่ตรวจพบ: {matched_menu}\n" + "\n".join(ingredient_details)
+    else:
+        summary_text = "ไม่พบเมนูที่ตรงกับกฎ"
+
+    # 🖼️ แปลงภาพเป็น Base64
     buffered = BytesIO()
     image.save(buffered, format="JPEG")
     encoded_img = base64.b64encode(buffered.getvalue()).decode()
 
+    # ✅ ส่งข้อมูลกลับไป
     return {
         "image": encoded_img,
         "detections": detections,
-        "predicted_menu": matched_menu or "ไม่พบเมนูที่ตรง"
+        "predicted_menu": matched_menu or "ไม่พบเมนูที่ตรง",
+        "ingredients": matched_ingredients,
+        "summary": summary_text
     }
