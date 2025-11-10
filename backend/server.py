@@ -18,7 +18,7 @@ app.add_middleware(
 
 # ✅ โหลดโมเดล
 try:
-    model = YOLO("best.pt")
+    model = YOLO("models/best.pt")
 except Exception as e:
     print("❌ โหลดโมเดลไม่สำเร็จ:", e)
     model = None
