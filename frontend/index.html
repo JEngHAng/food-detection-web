@@ -3,87 +3,133 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Food Detection AI 🍛</title>
+    <title>🍛 Thai Food Detector</title>
     <style>
       body {
         font-family: "Prompt", sans-serif;
-        background-color: #f4f6f9;
-        text-align: center;
+        background: linear-gradient(135deg, #fff8f0, #f4f7fa);
+        color: #333;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
         padding: 30px;
+        min-height: 100vh;
       }
 
       h1 {
-        color: #333;
+        color: #222;
+        margin-bottom: 10px;
       }
 
-      #upload {
-        margin-top: 20px;
+      .upload-box {
+        background: white;
+        padding: 25px;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        width: 100%;
+        max-width: 600px;
+      }
+
+      input[type="file"] {
+        display: block;
+        margin: 20px auto;
       }
 
       button {
-        margin-top: 20px;
-        padding: 10px 20px;
-        background-color: #4caf50;
-        color: white;
+        padding: 12px 25px;
         border: none;
-        border-radius: 6px;
+        border-radius: 10px;
+        background-color: #ff8c42;
+        color: white;
+        font-size: 16px;
         cursor: pointer;
-        transition: background 0.3s;
+        transition: all 0.2s;
       }
 
       button:hover {
-        background-color: #45a049;
+        background-color: #ff7a22;
       }
 
-      #result-box {
+      .result-card {
         margin-top: 30px;
         background: white;
-        border-radius: 12px;
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-        padding: 20px;
-        display: inline-block;
-        min-width: 300px;
+        border-radius: 20px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        padding: 25px;
+        text-align: center;
+        width: 100%;
         max-width: 700px;
+        transition: all 0.3s ease;
       }
 
-      #result-image {
-        margin-top: 15px;
-        max-width: 100%;
-        border-radius: 10px;
+      .result-card h2 {
+        color: #ff8c42;
+        margin-bottom: 15px;
+      }
+
+      .result-card img {
+        width: 100%;
+        max-width: 480px;
+        border-radius: 15px;
+        margin: 15px 0;
       }
 
       #results-list {
         text-align: left;
-        margin-top: 15px;
-        line-height: 1.6;
-        color: #333;
+        background: #fafafa;
+        border-radius: 12px;
+        padding: 15px;
+        line-height: 1.8;
+        margin-top: 10px;
+        font-size: 15px;
+      }
+
+      .menu-name {
+        font-size: 22px;
+        color: #1c7c54;
+        font-weight: 600;
+        margin-top: 10px;
+      }
+
+      .loading {
+        color: #777;
       }
     </style>
   </head>
+
   <body>
     <h1>🍱 ระบบตรวจจับอาหารไทย (Thai Food Detection)</h1>
+    <p>อัปโหลดรูปภาพอาหาร เพื่อให้ AI วิเคราะห์และบอกชื่อเมนู</p>
 
-    <input type="file" id="upload" accept="image/*" />
-    <br />
-    <button onclick="detect()">ตรวจจับอาหาร</button>
+    <div class="upload-box">
+      <input type="file" id="upload" accept="image/*" />
+      <button onclick="detect()">🔍 ตรวจจับอาหาร</button>
+    </div>
 
-    <div id="result-box">
-      <h2>🔍 ผลลัพธ์การตรวจจับ</h2>
-      <img id="result-image" src="" alt="" />
-      <div id="results-list">ยังไม่มีผลลัพธ์</div>
+    <div id="result-box" class="result-card" style="display: none">
+      <h2>ผลลัพธ์การตรวจจับ</h2>
+      <img id="result-image" src="" alt="ผลลัพธ์ภาพตรวจจับ" />
+      <div id="results-list">⏳ รอกำลังตรวจจับ...</div>
     </div>
 
     <script>
       async function detect() {
         const fileInput = document.getElementById("upload");
+        const resultBox = document.getElementById("result-box");
+        const resultList = document.getElementById("results-list");
+        const resultImage = document.getElementById("result-image");
+
         if (!fileInput.files[0]) {
-          alert("กรุณาเลือกรูปก่อนตรวจจับ");
+          alert("กรุณาเลือกรูปภาพก่อนตรวจจับครับ");
           return;
         }
 
+        resultBox.style.display = "block";
+        resultList.innerHTML = '<p class="loading">⏳ กำลังตรวจจับ...</p>';
+
         const formData = new FormData();
         formData.append("file", fileInput.files[0]);
-        document.getElementById("results-list").innerHTML = "⏳ กำลังตรวจจับ...";
 
         try {
           const response = await fetch(
@@ -96,46 +142,50 @@
 
           const data = await response.json();
 
-          // ✅ ตรวจว่า backend ส่ง error มาหรือไม่
+          // ✅ ตรวจ error จาก backend
           if (data.error) {
-            document.getElementById("results-list").innerHTML =
-              "❌ " + data.error;
+            resultList.innerHTML = "❌ " + data.error;
             return;
           }
 
-          if (!data.detections && !data.components) {
-            document.getElementById("results-list").innerHTML =
-              "⚠️ ไม่มีข้อมูลการตรวจจับ";
-            return;
+          // ✅ แสดงภาพผลลัพธ์
+          if (data.image) {
+            resultImage.src = "data:image/jpeg;base64," + data.image;
           }
 
-          // ✅ แสดงภาพที่ตรวจจับแล้ว
-          document.getElementById("result-image").src =
-            "data:image/jpeg;base64," + data.image;
-
-          // ✅ แสดงผลลัพธ์แบบสวยงาม
           let html = "";
 
+          // ✅ ถ้ามีเมนูที่ตรง
           if (data.predicted_menu && data.predicted_menu !== "ไม่พบเมนูที่ตรง") {
-            html += `<h3>🍛 ${data.predicted_menu}</h3>`;
+            html += `<div class="menu-name">🍛 ${data.predicted_menu}</div>`;
             html += "<strong>🔍 ส่วนประกอบ:</strong><br>";
 
-            (data.components || []).forEach((comp) => {
-              html += `• ${comp.name} (${comp.confidence?.toFixed(1) ?? 0}%)<br>`;
-            });
+            const components = data.components || data.detections || [];
+            if (components.length > 0) {
+              components.forEach((c) => {
+                html += `• ${c.name ?? "ไม่ทราบ"} (${(c.confidence ?? 0).toFixed(1)}%)<br>`;
+              });
+            } else {
+              html += "⚠️ ไม่มีข้อมูลส่วนประกอบ";
+            }
           } else {
+            // ❌ ถ้าไม่พบเมนูที่ตรง
             html += "<h3>🍽 ไม่พบเมนูที่ตรง</h3>";
             html += "<strong>🔍 ส่วนประกอบ:</strong><br>";
 
-            (data.detections || []).forEach((det) => {
-              html += `• ${det.name} (${det.confidence?.toFixed(1) ?? 0}%)<br>`;
-            });
+            const dets = data.detections || [];
+            if (dets.length > 0) {
+              dets.forEach((d) => {
+                html += `• ${d.name ?? "ไม่ทราบ"} (${(d.confidence ?? 0).toFixed(1)}%)<br>`;
+              });
+            } else {
+              html += "⚠️ ไม่มีข้อมูลการตรวจจับ";
+            }
           }
 
-          document.getElementById("results-list").innerHTML = html;
+          resultList.innerHTML = html;
         } catch (err) {
-          document.getElementById("results-list").innerHTML =
-            "❌ Error: " + err.message;
+          resultList.innerHTML = "❌ Error: " + err.message;
         }
       }
     </script>
