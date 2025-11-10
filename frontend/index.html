@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YOLOv8 Food Detector</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #fafafa; }
+    h1 { color: #2c3e50; }
+    .container { display: flex; justify-content: center; gap: 40px; margin-top: 20px; }
+    img { max-width: 500px; border-radius: 10px; border: 2px solid #ccc; }
+    #result-box { text-align: left; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); width: 250px; }
+  </style>
+</head>
+<body>
+  <h1>🍱 YOLOv8 Food Detection</h1>
+  <p>อัปโหลดภาพอาหาร แล้วระบบจะตรวจจับวัตถุ (18 classes)</p>
+
+  <input type="file" id="fileInput" accept="image/*"><br><br>
+
+  <div class="container">
+    <img id="preview" src="" alt="Detected Image">
+    <div id="result-box">
+      <h3>🧾 Detection Results</h3>
+      <ul id="detections"></ul>
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById("fileInput");
+    const preview = document.getElementById("preview");
+    const list = document.getElementById("detections");
+    const BACKEND_URL = "http://127.0.0.1:8000/detect";
+
+    input.addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      list.innerHTML = "<li>⏳ กำลังประมวลผล...</li>";
+
+      try {
+        const resp = await fetch(BACKEND_URL, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await resp.json();
+
+        // แสดงภาพที่ตรวจจับแล้ว
+        preview.src = "data:image/jpeg;base64," + data.image;
+
+        // แสดงผล class ที่เจอ
+        if (data.detections.length === 0) {
+          list.innerHTML = "<li>❌ ไม่พบวัตถุ</li>";
+        } else {
+          list.innerHTML = "";
+          data.detections.forEach(det => {
+            const li = document.createElement("li");
+            li.textContent = `${det.class} (${det.confidence})`;
+            list.appendChild(li);
+          });
+        }
+      } catch (err) {
+        list.innerHTML = `<li style="color:red;">Error: ${err.message}</li>`;
+      }
+    });
+  </script>
+</body>
+</html>
