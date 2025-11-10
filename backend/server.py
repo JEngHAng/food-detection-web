@@ -16,6 +16,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# แปล Class เป็นภาษาไทย
+CLASS_TRANSLATIONS = {
+    "boiled_chicken": "ไก่ต้ม",
+    "boiled_chicken_blood_jelly": "เลือดไก่ต้ม",
+    "boiled_egg": "ไข่ต้ม",
+    "chainese_sausage": "กุนเชียง",
+    "chicken_drumstick": "น่องไก่",
+    "chicken_rice": "ข้าวมันไก่",
+    "chicken_shredded": "ไก่ฉีก",
+    "crispy_pork": "หมูกรอบ",
+    "cucumber": "แตงกวา",
+    "daikon_radish": "ไชเท้า",
+    "fried_chicken": "ไก่ทอด",
+    "fried_tofo": "เต้าหู้ทอด",
+    "minced_pork": "หมูสับ",
+    "noodle": "ก๋วยเตี๋ยว",
+    "red_pork": "หมูแดง",
+    "red_pork_and_crispy_pork": "ข้าวหมูแดงหมูกรอบ",
+    "rice": "ข้าว",
+    "stir_fried_basil": "กะเพรา",
+}
+
 # ✅ โหลดโมเดล
 try:
     model = YOLO("models/best.pt")
