@@ -27,6 +27,8 @@
 
       <h2 class="text-lg font-semibold mt-4">🔍 Components:</h2>
       <ul id="componentList" class="list-disc pl-5 mt-2 text-gray-700"></ul>
+
+      <img id="detectedImage" class="hidden w-full mt-4 rounded-xl border" />
     </div>
   </div>
 
@@ -38,6 +40,7 @@
     const result = document.getElementById("result");
     const menuList = document.getElementById("menuList");
     const componentList = document.getElementById("componentList");
+    const detectedImage = document.getElementById("detectedImage");
 
     let uploadedFile = null;
 
@@ -64,30 +67,40 @@
       result.classList.add("hidden");
       menuList.innerHTML = "";
       componentList.innerHTML = "";
+      detectedImage.classList.add("hidden");
 
-      const res = await fetch("http://127.0.0.1:8000/predict/", {
+      // ✅ แก้ URL ให้เรียก /detect
+      const res = await fetch("https://biogeographically-caliphal-kaidence.ngrok-free.dev/detect", {
         method: "POST",
         body: formData
       });
 
       const data = await res.json();
 
-      if (data.menu.length === 0) {
+      // ✅ ตรวจเมนู
+      if (!data.predicted_menus || data.predicted_menus.length === 0) {
         menuList.innerHTML = `<li class="text-red-500 font-medium">No matching menu</li>`;
       } else {
-        data.menu.forEach(m => {
+        data.predicted_menus.forEach(m => {
           const li = document.createElement("li");
           li.textContent = m;
           menuList.appendChild(li);
         });
       }
 
-      if (data.components.length > 0) {
-        data.components.forEach(c => {
+      // ✅ ตรวจ components
+      if (data.detections && data.detections.length > 0) {
+        data.detections.forEach(c => {
           const li = document.createElement("li");
-          li.textContent = `${c.label} (${c.confidence}%)`;
+          li.textContent = `${c.name} (${c.confidence}%)`;
           componentList.appendChild(li);
         });
+      }
+
+      // ✅ แสดงภาพที่ตรวจแล้ว
+      if (data.image) {
+        detectedImage.src = "data:image/jpeg;base64," + data.image;
+        detectedImage.classList.remove("hidden");
       }
 
       result.classList.remove("hidden");
@@ -100,6 +113,8 @@
       result.classList.add("hidden");
       menuList.innerHTML = "";
       componentList.innerHTML = "";
+      detectedImage.src = "";
+      detectedImage.classList.add("hidden");
       uploadedFile = null;
     });
   </script>

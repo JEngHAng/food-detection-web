@@ -1,13 +1,16 @@
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from ultralytics import YOLO
 from PIL import Image
-import torch
 import io
+import base64
+import numpy as np
+import cv2
 
 app = FastAPI()
 
-# CORS (อนุญาตให้ frontend เรียก API ได้)
+# ✅ อนุญาตให้ frontend เข้ามาเรียกใช้
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,42 +19,88 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# โหลดโมเดล (ใช้ yolov5 หรือ yolov8 ก็ได้)
-model = torch.hub.load("ultralytics/yolov5", "custom", path="models/best.pt", force_reload=False)
-model.conf = 0.25  # ค่าความมั่นใจขั้นต่ำ
+# ✅ โหลดโมเดล YOLO รุ่นใหม่ (Ultralytics)
+MODEL_PATH = "models/best.pt"
+model = YOLO(MODEL_PATH)
 
-@app.post("/predict/")
-async def predict(file: UploadFile = File(...)):
+# ✅ mapping ชื่อ class → ชื่อเมนูจริง
+MENU_MAP = {
+    "chicken_rice": "Khao Man Gai (Chicken Rice)",
+    "fried_chicken": "Fried Chicken",
+    "boiled_chicken": "Boiled Chicken",
+    "cucumber": "Cucumber",
+    "red_pork_and_crispy_pork": "Red Pork & Crispy Pork Rice",
+    "boiled_chicken_blood_jelly": "Boiled Chicken Blood Jelly",
+}
+
+
+@app.post("/detect")
+async def detect(file: UploadFile = File(...)):
     try:
-        # อ่านไฟล์ภาพ
-        image = Image.open(io.BytesIO(await file.read())).convert("RGB")
+        # ✅ อ่านภาพจาก frontend
+        image_bytes = await file.read()
+        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-        # ใช้โมเดลตรวจจับ
-        results = model(image)
-        detections = results.pandas().xyxy[0].to_dict(orient="records")
+        # ✅ รันโมเดล (YOLOv8)
+        results = model.predict(img, imgsz=640, conf=0.25)
+        detections = results[0].boxes.data.cpu().numpy() if results else []
 
-        if not detections:
-            return JSONResponse({
-                "menu": [],
-                "components": [],
-                "message": "No matching menu found"
-            })
-
-        # จัดข้อมูล
         components = []
-        menus = set()
+        seen_menus = set()
 
-        for det in detections:
-            label = det["name"]
-            conf = round(det["confidence"] * 100, 1)
-            components.append({"label": label, "confidence": conf})
-            menus.add(label.split("_")[0])  # เช่น "chicken_rice" จาก "chicken_rice_meat"
+        # ✅ วาด bounding box และเก็บข้อมูล
+        img_cv = np.array(img)
+        for *box, conf, cls in detections:
+            name = model.names[int(cls)]
+            confidence = round(float(conf) * 100, 1)
 
-        return JSONResponse({
-            "menu": list(menus),
-            "components": components,
-            "message": "Multiple detections found"
-        })
+            # ✅ แปลงชื่อ class เป็นชื่อเมนูจริง
+            menu_name = MENU_MAP.get(name, name)
+            components.append({"name": menu_name, "confidence": confidence})
+
+            # ✅ ตรวจเมนูหลัก (หากเจอหลายอย่าง)
+            seen_menus.add(menu_name)
+
+            # ✅ วาดกรอบรอบวัตถุ
+            x1, y1, x2, y2 = map(int, box)
+            cv2.rectangle(img_cv, (x1, y1), (x2, y2), (255, 100, 0), 2)
+            cv2.putText(
+                img_cv,
+                f"{menu_name} {confidence:.1f}%",
+                (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (255, 100, 0),
+                2,
+            )
+
+        # ✅ แปลงภาพกลับเป็น base64 เพื่อส่งกลับ
+        _, buffer = cv2.imencode(".jpg", cv2.cvtColor(img_cv, cv2.COLOR_RGB2BGR))
+        image_base64 = base64.b64encode(buffer).decode("utf-8")
+
+        if len(components) == 0:
+            return JSONResponse(
+                content={
+                    "predicted_menus": [],
+                    "detections": [],
+                    "image": image_base64,
+                    "error": "No objects detected",
+                }
+            )
+
+        # ✅ ถ้ามีหลายเมนู ให้รวมทั้งหมด
+        return JSONResponse(
+            content={
+                "predicted_menus": list(seen_menus),
+                "detections": components,
+                "image": image_base64,
+            }
+        )
 
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse(content={"error": str(e)})
+
+
+@app.get("/")
+def root():
+    return {"message": "🍛 Thai Food Detection API is running with YOLOv8 🚀"}
