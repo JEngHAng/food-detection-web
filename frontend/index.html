@@ -37,7 +37,7 @@
         font-size: 16px;
         color: #333;
         background: #edf2f7;
-        padding: 10px;
+        padding: 15px;
         border-radius: 8px;
       }
 
@@ -49,6 +49,7 @@
         border-radius: 8px;
         cursor: pointer;
         margin: 10px;
+        font-size: 15px;
       }
 
       button:hover {
@@ -62,14 +63,14 @@
 
     <div class="container">
       <input type="file" id="upload" accept="image/*" />
-      <button onclick="detect()">🔍 Detect Food</button>
+      <button onclick="detect()">🔍 ตรวจจับอาหาร</button>
 
       <div>
         <img id="result-image" src="" alt="Result" />
       </div>
 
-      <h3>🧾 Detection Results</h3>
-      <div id="results-list">No detections yet.</div>
+      <h3>🧾 ผลการตรวจจับ</h3>
+      <div id="results-list">ยังไม่มีการตรวจจับ</div>
     </div>
 
     <script>
@@ -82,7 +83,7 @@
 
         const formData = new FormData();
         formData.append("file", fileInput.files[0]);
-        document.getElementById("results-list").innerHTML = "⏳ Detecting...";
+        document.getElementById("results-list").innerHTML = "⏳ กำลังตรวจจับ...";
 
         try {
           const response = await fetch(
@@ -95,36 +96,51 @@
 
           const data = await response.json();
 
-          // ✅ ตรวจว่า backend ส่ง error มาหรือไม่
+          // ✅ ตรวจ error จาก backend
           if (data.error) {
             document.getElementById("results-list").innerHTML =
               "❌ " + data.error;
             return;
           }
 
+          // ✅ ตรวจว่าได้ผลลัพธ์หรือไม่
           if (!data.detections) {
             document.getElementById("results-list").innerHTML =
               "⚠️ ไม่มีข้อมูลการตรวจจับ";
             return;
           }
 
-          // ✅ แสดงผลภาพ
+          // ✅ แสดงภาพผลลัพธ์
           document.getElementById("result-image").src =
             "data:image/jpeg;base64," + data.image;
 
-          // ✅ แสดงผลการตรวจจับ
+          // ✅ แสดงชื่อเมนูและส่วนประกอบ
           const resultsDiv = document.getElementById("results-list");
+
           if (data.detections.length === 0) {
-            resultsDiv.innerHTML = "No objects detected.";
+            resultsDiv.innerHTML = "⚠️ ไม่พบวัตถุในภาพ";
           } else {
-            resultsDiv.innerHTML = data.detections
+            let html = "";
+
+            // 🍛 แสดงชื่อเมนู
+            if (data.predicted_menu && data.predicted_menu !== "ไม่พบเมนูที่ตรง") {
+              html += `<h3>🍛 เมนูที่ตรวจพบ: <span style="color: green;">${data.predicted_menu}</span></h3>`;
+            } else {
+              html += `<h3>🍽 ไม่พบเมนูที่ตรง</h3>`;
+            }
+
+            // 🔍 แสดงส่วนประกอบ
+            html += `<h4>🔍 ส่วนประกอบ:</h4>`;
+            html += data.detections
               .map(
                 (d) =>
-                  `<div>${d.class_name} (${(d.confidence * 100).toFixed(
+                  `<div>• ${d.class_name} (${(d.confidence * 100).toFixed(
                     1
                   )}%)</div>`
               )
               .join("");
+
+            resultsDiv.innerHTML = html;
           }
         } catch (err) {
           document.getElementById("results-list").innerHTML =
